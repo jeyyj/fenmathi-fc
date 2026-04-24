@@ -447,13 +447,36 @@ function loadLocal() {
     const s = localStorage.getItem('fenmathi_state');
     if (s) {
       const p = JSON.parse(s);
-      // Only override config from state if dedicated key not found
       if (!cfg) state.config = p.config || state.config;
       state.players = p.players || [];
       state.tournaments = p.tournaments || [];
       state.matches = p.matches || [];
     }
   } catch(e) {}
+}
+
+// Merge sheet data with localStorage — localStorage wins for active tournaments
+function mergeSheetData(sheetPlayers, sheetTournaments, sheetMatches) {
+  // Always use sheet players (source of truth for roster)
+  if (sheetPlayers.length > 0) state.players = sheetPlayers;
+
+  // For tournaments: merge sheet completed ones with local active ones
+  const localActive = state.tournaments.filter(t => t.status !== 'completed');
+  const sheetCompleted = sheetTournaments.filter(t => t.status === 'completed');
+  
+  // Merge: sheet completed + local active (local wins for non-completed)
+  const merged = [...sheetCompleted];
+  localActive.forEach(lt => {
+    if (!merged.find(t => t.id === lt.id)) merged.push(lt);
+  });
+  state.tournaments = merged;
+
+  // For matches: merge sheet matches with local matches
+  const localMatchIds = new Set(sheetMatches.map(m => m.id));
+  const localOnlyMatches = state.matches.filter(m => !localMatchIds.has(m.id));
+  state.matches = [...sheetMatches, ...localOnlyMatches];
+
+  saveLocal();
 }
 
 function saveLocal() {
@@ -535,10 +558,10 @@ async function loadFromSheets() {
     ]);
     if (!pJ) { setStatus('error'); return false; }
     // Strict validation per type to prevent tab data mixing
-    state.players = parseGViz(pJ).filter(r => 
+    const sheetPlayers = parseGViz(pJ).filter(r => 
       r.id && r.name && String(r.id).startsWith('p_')
     );
-    state.tournaments = parseGViz(tJ).filter(r => 
+    const sheetTournaments = parseGViz(tJ).filter(r => 
       r.id && r.name && r.status && 
       String(r.id).startsWith('t_') &&
       ['group_stage','knockout','completed'].includes(r.status)
@@ -547,7 +570,7 @@ async function loadFromSheets() {
       players: safeJson(t.players, []),
       groups: safeJson(t.groups, {}),
     }));
-    state.matches = parseGViz(mJ).filter(r => 
+    const sheetMatches = parseGViz(mJ).filter(r => 
       r.id && r.tournament_id && r.round &&
       String(r.id).startsWith('m_')
     ).map(m => ({
@@ -556,7 +579,9 @@ async function loadFromSheets() {
       home_score: m.home_score !== null && m.home_score !== '' ? parseInt(m.home_score) : null,
       away_score: m.away_score !== null && m.away_score !== '' ? parseInt(m.away_score) : null,
     }));
-    setStatus('connected'); saveLocal(); return true;
+    // Merge with localStorage instead of overwriting
+    mergeSheetData(sheetPlayers, sheetTournaments, sheetMatches);
+    setStatus('connected'); return true;
   } catch(e) { setStatus('error'); return false; }
 }
 
