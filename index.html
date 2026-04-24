@@ -534,13 +534,23 @@ async function loadFromSheets() {
       fetchSheetTab('players'), fetchSheetTab('tournaments'), fetchSheetTab('matches')
     ]);
     if (!pJ) { setStatus('error'); return false; }
-    state.players = parseGViz(pJ).filter(r => r.id);
-    state.tournaments = parseGViz(tJ).filter(r => r.id && r.name && r.status).map(t => ({
+    // Strict validation per type to prevent tab data mixing
+    state.players = parseGViz(pJ).filter(r => 
+      r.id && r.name && String(r.id).startsWith('p_')
+    );
+    state.tournaments = parseGViz(tJ).filter(r => 
+      r.id && r.name && r.status && 
+      String(r.id).startsWith('t_') &&
+      ['group_stage','knockout','completed'].includes(r.status)
+    ).map(t => ({
       ...t,
       players: safeJson(t.players, []),
       groups: safeJson(t.groups, {}),
     }));
-    state.matches = parseGViz(mJ).filter(r => r.id).map(m => ({
+    state.matches = parseGViz(mJ).filter(r => 
+      r.id && r.tournament_id && r.round &&
+      String(r.id).startsWith('m_')
+    ).map(m => ({
       ...m,
       played: m.played === 'TRUE' || m.played === true,
       home_score: m.home_score !== null && m.home_score !== '' ? parseInt(m.home_score) : null,
