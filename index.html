@@ -459,21 +459,45 @@ function saveLocal() {
 // ============================================================
 async function fetchSheetTab(tab) {
   if (!state.config.sheetId) return null;
-  const url = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/gviz/tq?tqx=out:json&sheet=${tab}`;
+  const url = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}&headers=1`;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { mode: 'cors' });
     const text = await res.text();
-    const json = JSON.parse(text.replace(/.*google\.visualization\.Query\.setResponse\(/, '').replace(/\);?\s*$/, ''));
+    // GViz returns JS callback, strip it
+    const clean = text.replace(/^.*?\(/, '').replace(/\);?\s*$/, '');
+    const json = JSON.parse(clean);
     return json;
-  } catch(e) { return null; }
+  } catch(e) {
+    // Fallback: try CSV export
+    try {
+      const csvUrl = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/export?format=csv&sheet=${encodeURIComponent(tab)}`;
+      const res = await fetch(csvUrl);
+      if (!res.ok) return null;
+      const text = await res.text();
+      return parseCsv(text);
+    } catch(e2) { return null; }
+  }
+}
+
+function parseCsv(text) {
+  const lines = text.trim().split('\n').map(l => l.split(',').map(c => c.replace(/^"|"$/g, '').trim()));
+  if (lines.length < 2) return { table: { cols: [], rows: [] } };
+  const headers = lines[0];
+  const cols = headers.map(h => ({ label: h }));
+  const rows = lines.slice(1).map(line => ({
+    c: line.map(v => ({ v: v === '' ? null : v }))
+  }));
+  return { table: { cols, rows } };
 }
 
 function parseGViz(json) {
   if (!json || !json.table || !json.table.rows) return [];
-  const cols = json.table.cols.map(c => c.label);
+  const cols = json.table.cols.map(c => c.label || c.id || '');
   return json.table.rows.map(row => {
     const obj = {};
-    row.c.forEach((cell, i) => { obj[cols[i]] = cell ? cell.v : null; });
+    row.c.forEach((cell, i) => {
+      obj[cols[i]] = (cell && cell.v !== undefined && cell.v !== null) ? cell.v : null;
+    });
     return obj;
   });
 }
