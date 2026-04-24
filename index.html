@@ -493,24 +493,28 @@ function saveLocal() {
 // ============================================================
 async function fetchSheetTab(tab) {
   if (!state.config.sheetId) return null;
-  // Use CSV export — most reliable across all browsers and CORS situations
+  // GViz as primary — works without Google login for public sheets
   try {
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/export?format=csv&sheet=${encodeURIComponent(tab)}`;
-    const res = await fetch(csvUrl);
-    if (!res.ok) throw new Error('CSV fetch failed: ' + res.status);
+    const url = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}&headers=1`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('GViz failed: ' + res.status);
     const text = await res.text();
-    if (!text || text.includes('<!DOCTYPE')) throw new Error('Got HTML instead of CSV');
-    return parseCsv(text);
+    if (!text || text.includes('<!DOCTYPE')) throw new Error('Got HTML');
+    const start = text.indexOf('(') + 1;
+    const end = text.lastIndexOf(')');
+    if (start <= 0 || end <= 0) throw new Error('No wrapper found');
+    const json = JSON.parse(text.substring(start, end));
+    if (!json.table) throw new Error('No table in response');
+    return json;
   } catch(e) {
-    // Fallback: GViz
+    // Fallback: CSV (works when logged in)
     try {
-      const url = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}&headers=1`;
-      const res = await fetch(url);
+      const csvUrl = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/export?format=csv&sheet=${encodeURIComponent(tab)}`;
+      const res = await fetch(csvUrl);
+      if (!res.ok) throw new Error('CSV failed');
       const text = await res.text();
-      const start = text.indexOf('(') + 1;
-      const end = text.lastIndexOf(')');
-      const json = JSON.parse(text.substring(start, end));
-      return json;
+      if (!text || text.includes('<!DOCTYPE')) throw new Error('Got HTML');
+      return parseCsv(text);
     } catch(e2) { return null; }
   }
 }
