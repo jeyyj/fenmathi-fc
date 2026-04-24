@@ -493,7 +493,7 @@ function saveLocal() {
 // ============================================================
 async function fetchSheetTab(tab) {
   if (!state.config.sheetId) return null;
-  const url = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}&headers=1`;
+  const url = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}&headers=1&tq=select+*`;
   try {
     const res = await fetch(url, { mode: 'cors' });
     const text = await res.text();
@@ -526,11 +526,16 @@ function parseCsv(text) {
 
 function parseGViz(json) {
   if (!json || !json.table || !json.table.rows) return [];
-  const cols = json.table.cols.map(c => c.label || c.id || '');
+  // Use label if it looks like a real header (not single letter), else fall back to position-based
+  const cols = json.table.cols.map(c => {
+    const label = c.label || '';
+    // If label is a real word (not just A, B, C...), use it
+    return label.length > 1 ? label : (c.id || '');
+  });
   return json.table.rows.map(row => {
     const obj = {};
     row.c.forEach((cell, i) => {
-      obj[cols[i]] = (cell && cell.v !== undefined && cell.v !== null) ? cell.v : null;
+      if (cols[i]) obj[cols[i]] = (cell && cell.v !== undefined && cell.v !== null) ? cell.v : null;
     });
     return obj;
   });
