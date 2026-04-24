@@ -493,12 +493,15 @@ function saveLocal() {
 // ============================================================
 async function fetchSheetTab(tab) {
   if (!state.config.sheetId) return null;
-  const url = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}&headers=1&tq=select+*`;
+  const url = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}&headers=1`;
   try {
     const res = await fetch(url, { mode: 'cors' });
     const text = await res.text();
     // GViz returns JS callback, strip it
-    const clean = text.replace(/^.*?\(/, '').replace(/\);?\s*$/, '');
+    // Strip the google.visualization.Query.setResponse( wrapper
+    const start = text.indexOf('(') + 1;
+    const end = text.lastIndexOf(')');
+    const clean = text.substring(start, end);
     const json = JSON.parse(clean);
     return json;
   } catch(e) {
