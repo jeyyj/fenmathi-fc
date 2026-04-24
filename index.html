@@ -493,52 +493,82 @@ function saveLocal() {
 // ============================================================
 async function fetchSheetTab(tab) {
   if (!state.config.sheetId) return null;
-  const url = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}&headers=1`;
+  // Use CSV export — most reliable across all browsers and CORS situations
   try {
-    const res = await fetch(url, { mode: 'cors' });
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/export?format=csv&sheet=${encodeURIComponent(tab)}`;
+    const res = await fetch(csvUrl);
+    if (!res.ok) throw new Error('CSV fetch failed: ' + res.status);
     const text = await res.text();
-    // GViz returns JS callback, strip it
-    // Strip the google.visualization.Query.setResponse( wrapper
-    const start = text.indexOf('(') + 1;
-    const end = text.lastIndexOf(')');
-    const clean = text.substring(start, end);
-    const json = JSON.parse(clean);
-    return json;
+    if (!text || text.includes('<!DOCTYPE')) throw new Error('Got HTML instead of CSV');
+    return parseCsv(text);
   } catch(e) {
-    // Fallback: try CSV export
+    // Fallback: GViz
     try {
-      const csvUrl = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/export?format=csv&sheet=${encodeURIComponent(tab)}`;
-      const res = await fetch(csvUrl);
-      if (!res.ok) return null;
+      const url = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}&headers=1`;
+      const res = await fetch(url);
       const text = await res.text();
-      return parseCsv(text);
+      const start = text.indexOf('(') + 1;
+      const end = text.lastIndexOf(')');
+      const json = JSON.parse(text.substring(start, end));
+      return json;
     } catch(e2) { return null; }
   }
 }
 
 function parseCsv(text) {
-  const lines = text.trim().split('\n').map(l => l.split(',').map(c => c.replace(/^"|"$/g, '').trim()));
-  if (lines.length < 2) return { table: { cols: [], rows: [] } };
-  const headers = lines[0];
+  // Robust CSV parser that handles quoted fields with commas/newlines
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i+1];
+    if (inQuotes) {
+      if (ch === '"' && next === '"') { field += '"'; i++; }
+      else if (ch === '"') { inQuotes = false; }
+      else { field += ch; }
+    } else {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === ',') { row.push(field.trim()); field = ''; }
+      else if (ch === '\n' || (ch === '\r' && next === '\n')) {
+        row.push(field.trim()); rows.push(row); row = []; field = '';
+        if (ch === '\r') i++;
+      } else { field += ch; }
+    }
+  }
+  if (field || row.length) { row.push(field.trim()); rows.push(row); }
+  
+  if (rows.length < 2) return { table: { cols: [], rows: [] } };
+  const headers = rows[0];
   const cols = headers.map(h => ({ label: h }));
-  const rows = lines.slice(1).map(line => ({
-    c: line.map(v => ({ v: v === '' ? null : v }))
+  const dataRows = rows.slice(1).filter(r => r.some(v => v !== '')).map(r => ({
+    c: r.map(v => ({ v: v === '' ? null : v }))
   }));
-  return { table: { cols, rows } };
+  return { table: { cols, dataRows, rows: dataRows } };
 }
 
 function parseGViz(json) {
   if (!json || !json.table || !json.table.rows) return [];
-  // Use label if it looks like a real header (not single letter), else fall back to position-based
-  const cols = json.table.cols.map(c => {
-    const label = c.label || '';
-    // If label is a real word (not just A, B, C...), use it
-    return label.length > 1 ? label : (c.id || '');
-  });
+  const cols = json.table.cols.map(c => c.label || c.id || '');
   return json.table.rows.map(row => {
     const obj = {};
     row.c.forEach((cell, i) => {
-      if (cols[i]) obj[cols[i]] = (cell && cell.v !== undefined && cell.v !== null) ? cell.v : null;
+      if (!cols[i]) return;
+      if (!cell || cell.v === null || cell.v === undefined) {
+        obj[cols[i]] = null;
+        return;
+      }
+      // GViz returns dates as Date(yyyy,m,d) — convert to string
+      if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
+        // Use formatted value if available, otherwise parse
+        if (cell.f) {
+          obj[cols[i]] = cell.f;
+        } else {
+          const parts = cell.v.replace('Date(','').replace(')','').split(',');
+          const y = parts[0], m = String(parseInt(parts[1])+1).padStart(2,'0'), d = String(parts[2]).padStart(2,'0');
+          obj[cols[i]] = `${y}-${m}-${d}`;
+        }
+      } else {
+        obj[cols[i]] = cell.v;
+      }
     });
     return obj;
   });
