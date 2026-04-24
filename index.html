@@ -535,7 +535,7 @@ async function loadFromSheets() {
     ]);
     if (!pJ) { setStatus('error'); return false; }
     state.players = parseGViz(pJ).filter(r => r.id);
-    state.tournaments = parseGViz(tJ).filter(r => r.id).map(t => ({
+    state.tournaments = parseGViz(tJ).filter(r => r.id && r.name && r.status).map(t => ({
       ...t,
       players: safeJson(t.players, []),
       groups: safeJson(t.groups, {}),
@@ -1353,7 +1353,10 @@ function abandonTournament(tid) {
   if(!confirm('Abandon this tournament? This cannot be undone.')) return;
   state.tournaments=state.tournaments.filter(t=>t.id!==tid);
   state.matches=state.matches.filter(m=>m.tournament_id!==tid);
-  saveLocal(); refreshAll(); toast('Tournament abandoned');
+  saveLocal();
+  // Delete from Sheet
+  if(state.config.scriptUrl) postToScript('deleteTournament', { id: tid });
+  refreshAll(); toast('Tournament abandoned');
 }
 
 // ============================================================
