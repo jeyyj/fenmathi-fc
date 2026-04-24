@@ -322,9 +322,15 @@
   <div id="tournament-setup-section">
     <div class="card">
       <div class="card-title">🎮 NEW TOURNAMENT</div>
-      <div class="input-group">
-        <label>Tournament Name</label>
-        <input type="text" id="t-name" placeholder="e.g. May 2026 Monthly">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="input-group">
+          <label>Tournament Name</label>
+          <input type="text" id="t-name" placeholder="e.g. May 2026 Monthly">
+        </div>
+        <div class="input-group">
+          <label>Tournament Date</label>
+          <input type="date" id="t-date">
+        </div>
       </div>
       <div class="input-group">
         <label>Select Available Players</label>
@@ -434,10 +440,15 @@ let state = {
 
 function loadLocal() {
   try {
+    // Load config from dedicated key first (survives localStorage.clear())
+    const cfg = localStorage.getItem('fenmathi_config');
+    if (cfg) state.config = JSON.parse(cfg);
+    
     const s = localStorage.getItem('fenmathi_state');
     if (s) {
       const p = JSON.parse(s);
-      state.config = p.config || state.config;
+      // Only override config from state if dedicated key not found
+      if (!cfg) state.config = p.config || state.config;
       state.players = p.players || [];
       state.tournaments = p.tournaments || [];
       state.matches = p.matches || [];
@@ -699,6 +710,8 @@ function openConfig() {
 async function saveConfig() {
   state.config.sheetId = document.getElementById('cfg-sheet-id').value.trim();
   state.config.scriptUrl = document.getElementById('cfg-script-url').value.trim();
+  // Save config separately so it survives localStorage.clear()
+  localStorage.setItem('fenmathi_config', JSON.stringify(state.config));
   saveLocal(); closeModal('config-modal');
   const ok = await loadFromSheets();
   if (ok) { toast('Connected to Google Sheets!'); refreshAll(); }
