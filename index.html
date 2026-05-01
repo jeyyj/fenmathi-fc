@@ -197,22 +197,21 @@
   .toast.error { border-color:var(--red); }
 
   /* ---- AWARDS ---- */
-  .awards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; margin-bottom:8px; }
+  .awards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; margin-bottom:8px; }
   .award-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
   .award-card-header { padding:12px 16px; background:var(--surface2); border-bottom:1px solid var(--border); }
-  .award-category { font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-muted); }
-  .award-winner { font-family:var(--font-display); font-size:20px; letter-spacing:1px; color:var(--green); margin-top:2px; }
-  .award-winner.roast { color:var(--red); }
-  .award-bar-row { display:flex; align-items:center; gap:10px; padding:8px 16px; border-bottom:1px solid rgba(42,58,46,0.3); }
-  .award-bar-row:last-child { border-bottom:none; }
-  .award-bar-name { font-size:12px; font-weight:600; min-width:70px; }
-  .award-bar-name.winner { color:var(--green); }
-  .award-bar-name.winner.roast { color:var(--red); }
-  .award-bar-track { flex:1; background:var(--surface3); border-radius:4px; height:8px; overflow:hidden; }
-  .award-bar-fill { height:100%; border-radius:4px; background:var(--surface3); transition:width 0.6s ease; }
-  .award-bar-fill.winner { background:var(--green); }
-  .award-bar-fill.winner.roast { background:var(--red); }
-  .award-bar-count { font-family:var(--font-mono); font-size:11px; color:var(--text-dim); min-width:20px; text-align:right; }
+  .award-category { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-muted); margin-bottom:3px; }
+  .award-winner-name { font-family:var(--font-display); font-size:20px; letter-spacing:1px; color:var(--green); }
+  .award-winner-name.roast { color:var(--red); }
+  .award-card-body { padding:12px 16px; }
+  .award-legend { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+  .award-legend-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-dim); font-family:var(--font-mono); }
+  .award-legend-dot { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+  .award-legend-dot.pie { border-radius:50%; }
+  .award-view-toggle { display:flex; gap:6px; }
+  .award-toggle-btn { padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:var(--surface3); color:var(--text-dim); font-family:var(--font-body); font-size:11px; font-weight:600; cursor:pointer; transition:all 0.2s; letter-spacing:0.5px; }
+  .award-toggle-btn.active { background:var(--green); color:#000; border-color:var(--green); }
+  .award-toggle-btn.active.roast { background:var(--red); color:#fff; border-color:var(--red); }
 </style>
 </head>
 <body>
@@ -384,7 +383,13 @@
 <div class="page" id="page-awards">
   <div class="section-header">
     <div class="section-title">🏅 SQUAD AWARDS 2026</div>
-    <span class="badge badge-amber">8 votes · 22 categories</span>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="badge badge-amber">8 votes · 22 categories</span>
+      <div style="display:flex;gap:6px">
+        <button class="award-toggle-btn active" id="global-bar-btn" onclick="setAllAwardsView('bar')">▰ Bar</button>
+        <button class="award-toggle-btn" id="global-pie-btn" onclick="setAllAwardsView('pie')">◕ Pie</button>
+      </div>
+    </div>
   </div>
 
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
@@ -1621,73 +1626,176 @@ function buildHistoryDetail(t) {
 //  AWARDS DATA
 // ============================================================
 const SKILL_AWARDS = [
-  { category: 'Best Overall', votes: { Suraij:7, Maazin:1 } },
-  { category: 'Best Midfielder', votes: { Suraij:6, Maazin:1, Azaan:1 } },
-  { category: 'Best Defender', votes: { Azaan:6, Anaan:2 } },
-  { category: 'Best Dribbler', votes: { Iyan:6, Suraij:2 } },
-  { category: 'Best Free Kick Taker', votes: { Maazin:5, Azaan:2, Suraij:1 } },
-  { category: 'Best Passer', votes: { Suraij:5, Iyan:1, Maazin:1, Azaan:1 } },
-  { category: 'Best Close Range Shooter', votes: { Chipey:4, Kokkee:2, Maazin:1, Suraij:1 } },
-  { category: 'Best Long Range Shooter', votes: { Maazin:4, Suraij:4 } },
-  { category: 'Best Corner Kick Taker', votes: { Suraij:4, Maazin:3, Azaan:1 } },
-  { category: 'Best Crosser', votes: { Suraij:4, Azaan:2, Iyan:1, Maazin:1 } },
-  { category: 'Best Winger', votes: { Maazin:4, Iyan:4 } },
-  { category: 'Best Rookie Player', votes: { Chipey:5, Bombai:3 } },
-  { category: 'Most Underrated Player', votes: { Saaid:5, Anaan:2, Kokkee:1 } },
-  { category: 'Most Chill Player', votes: { Saaid:6, Anaan:1, Azaan:1 } },
+  { category: 'Best Overall', winner:'Suraij', votes: { Suraij:7, Maazin:1 } },
+  { category: 'Best Midfielder', winner:'Suraij', votes: { Suraij:6, Maazin:1, Azaan:1 } },
+  { category: 'Best Defender', winner:'Azaan', votes: { Azaan:6, Anaan:2 } },
+  { category: 'Best Dribbler', winner:'Iyan', votes: { Iyan:6, Suraij:2 } },
+  { category: 'Best Free Kick Taker', winner:'Maazin', votes: { Maazin:5, Azaan:2, Suraij:1 } },
+  { category: 'Best Passer', winner:'Suraij', votes: { Suraij:5, Iyan:1, Maazin:1, Azaan:1 } },
+  { category: 'Best Rookie Player', winner:'Chipey', votes: { Chipey:5, Bombai:3 } },
+  { category: 'Most Underrated Player', winner:'Saaid', votes: { Saaid:5, Anaan:2, Kokkee:1 } },
+  { category: 'Best Close Range Shooter', winner:'Chipey', votes: { Chipey:4, Kokkee:2, Maazin:1, Suraij:1 } },
+  { category: 'Best Long Range Shooter', winner:'Maazin / Suraij', votes: { Maazin:4, Suraij:4 } },
+  { category: 'Best Corner Kick Taker', winner:'Suraij', votes: { Suraij:4, Maazin:3, Azaan:1 } },
+  { category: 'Best Crosser', winner:'Suraij', votes: { Suraij:4, Azaan:2, Iyan:1, Maazin:1 } },
+  { category: 'Best Winger', winner:'Maazin / Iyan', votes: { Maazin:4, Iyan:4 } },
+  { category: 'Most Chill Player', winner:'Saaid', votes: { Saaid:6, Anaan:1, Azaan:1 } },
 ];
 
 const ROAST_AWARDS = [
-  { category: 'Most Loud Player', votes: { Bombai:7, Suraij:1 } },
-  { category: 'Worst Player', votes: { Bombai:6, Suraij:1, Chipey:1 } },
-  { category: 'Most Likely to Miss Wide Open Goals', votes: { Bombai:5, Azaan:1, Chipey:1, Saaid:1 } },
-  { category: 'Biggest Complainer', votes: { Bombai:4, Iyan:2, Suraij:1, Anaan:1 } },
-  { category: 'Most Greedy Player', votes: { Iyan:4, Suraij:3, Azaan:1 } },
-  { category: 'Most "Out of Position" Player', votes: { Bombai:3, Azaan:2, Suraij:1, Kokkee:1, Chipey:1 } },
-  { category: 'Least Likely to Hop On', votes: { Anaan:4, Bombai:2, Azaan:1, Iyan:1 } },
+  { category: 'Most Loud Player', winner:'Bombai', votes: { Bombai:7, Suraij:1 } },
+  { category: 'Worst Player', winner:'Bombai', votes: { Bombai:6, Suraij:1, Chipey:1 } },
+  { category: 'Most Likely to Miss Wide Open Goals', winner:'Bombai', votes: { Bombai:5, Azaan:1, Chipey:1, Saaid:1 } },
+  { category: 'Biggest Complainer', winner:'Bombai', votes: { Bombai:4, Iyan:2, Suraij:1, Anaan:1 } },
+  { category: 'Most Greedy Player', winner:'Iyan', votes: { Iyan:4, Suraij:3, Azaan:1 } },
+  { category: 'Most Out of Position Player', winner:'Bombai', votes: { Bombai:3, Azaan:2, Suraij:1, Kokkee:1, Chipey:1 } },
+  { category: 'Least Likely to Hop On', winner:'Anaan', votes: { Anaan:4, Bombai:2, Azaan:1, Iyan:1 } },
 ];
 
-function buildAwardCard(award, isRoast) {
-  const entries = Object.entries(award.votes).sort((a,b) => b[1]-a[1]);
-  const maxVotes = entries[0][1];
-  const winner = entries[0][0];
-  const totalVotes = entries.reduce((a,b) => a+b[1], 0);
+// Track view state per card: 'bar' or 'pie'
+const awardViewState = {};
+const awardCharts = {};
+
+function getAwardColors(isRoast) {
+  return isRoast
+    ? { winner:'#ff4757', others:['rgba(255,71,87,0.5)','rgba(255,71,87,0.35)','rgba(255,71,87,0.2)','rgba(255,71,87,0.15)'] }
+    : { winner:'#00e87a', others:['rgba(0,232,122,0.5)','rgba(0,232,122,0.35)','rgba(0,232,122,0.2)','rgba(0,232,122,0.15)'] };
+}
+
+function buildAwardCard(award, isRoast, cardId) {
   const roastClass = isRoast ? ' roast' : '';
-
-  const bars = entries.map(([name, count]) => {
-    const isWinner = name === winner;
-    const pct = Math.round((count / maxVotes) * 100);
-    return `<div class="award-bar-row">
-      <div class="award-bar-name${isWinner ? ' winner'+roastClass : ''}">${name}</div>
-      <div class="award-bar-track">
-        <div class="award-bar-fill${isWinner ? ' winner'+roastClass : ''}" style="width:${pct}%"></div>
+  const accentColor = isRoast ? 'var(--red)' : 'var(--green)';
+  const total = Object.values(award.votes).reduce((a,b)=>a+b,0);
+  return `<div class="award-card" id="card-${cardId}">
+    <div class="award-card-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+      <div>
+        <div class="award-category">${award.category}</div>
+        <div class="award-winner-name${roastClass}">${award.winner} <span style="font-size:12px;color:var(--text-dim);font-family:var(--font-body);font-weight:400">(${award.votes[Object.keys(award.votes)[0]]}/${total})</span></div>
       </div>
-      <div class="award-bar-count">${count}</div>
-    </div>`;
-  }).join('');
-
-  // Tied winner label
-  const topCount = entries[0][1];
-  const winners = entries.filter(e => e[1] === topCount).map(e => e[0]);
-  const winnerLabel = winners.length > 1 ? winners.join(' / ') : winner;
-
-  return `<div class="award-card">
-    <div class="award-card-header">
-      <div class="award-category">${award.category}</div>
-      <div class="award-winner${roastClass}">🏅 ${winnerLabel} <span style="font-size:13px;color:var(--text-dim);font-family:var(--font-body);font-weight:400">(${topCount}/${totalVotes} votes)</span></div>
+      <div class="award-view-toggle">
+        <button class="award-toggle-btn active${roastClass}" id="btn-bar-${cardId}" onclick="switchAwardView('${cardId}','bar',${isRoast})">▰ Bar</button>
+        <button class="award-toggle-btn${roastClass}" id="btn-pie-${cardId}" onclick="switchAwardView('${cardId}','pie',${isRoast})">◕ Pie</button>
+      </div>
     </div>
-    ${bars}
+    <div class="award-card-body">
+      <div class="award-legend" id="legend-${cardId}"></div>
+      <div style="position:relative;width:100%" id="chart-wrap-${cardId}">
+        <canvas id="chart-${cardId}" role="img" aria-label="${award.category} vote chart"></canvas>
+      </div>
+    </div>
   </div>`;
 }
 
-function renderAwardsPage() {
-  document.getElementById('skill-awards-grid').innerHTML = SKILL_AWARDS.map(a => buildAwardCard(a, false)).join('');
-  document.getElementById('roast-awards-grid').innerHTML = ROAST_AWARDS.map(a => buildAwardCard(a, true)).join('');
-  // Animate bars
-  setTimeout(() => {
-    document.querySelectorAll('.award-bar-fill').forEach(el => {
-      el.style.width = el.style.width;
+function renderAwardChart(cardId, award, isRoast, view) {
+  const entries = Object.entries(award.votes).sort((a,b)=>b[1]-a[1]);
+  const labels = entries.map(e=>e[0]);
+  const data = entries.map(e=>e[1]);
+  const total = data.reduce((a,b)=>a+b,0);
+  const c = getAwardColors(isRoast);
+  const bgColors = entries.map((e,i) => e[0]===award.winner.split(' / ')[0] || (award.winner.includes(' / ') && award.winner.includes(e[0])) ? c.winner : (c.others[i-1] || c.others[c.others.length-1]));
+
+  // Destroy existing chart
+  if (awardCharts[cardId]) { awardCharts[cardId].destroy(); delete awardCharts[cardId]; }
+
+  // Update legend
+  const legendEl = document.getElementById('legend-'+cardId);
+  const isPie = view==='pie';
+  legendEl.innerHTML = entries.map((e,i) => {
+    const pct = Math.round(e[1]/total*100);
+    return `<span class="award-legend-item"><span class="award-legend-dot${isPie?' pie':''}" style="background:${bgColors[i]}"></span>${e[0]} ${isPie ? pct+'%' : e[1]}</span>`;
+  }).join('');
+
+  // Update buttons
+  const btnBar = document.getElementById('btn-bar-'+cardId);
+  const btnPie = document.getElementById('btn-pie-'+cardId);
+  const roastClass = isRoast?' roast':'';
+  btnBar.className = 'award-toggle-btn'+(view==='bar'?' active'+roastClass:roastClass);
+  btnPie.className = 'award-toggle-btn'+(view==='pie'?' active'+roastClass:roastClass);
+
+  // Set chart wrap height
+  const wrap = document.getElementById('chart-wrap-'+cardId);
+  const h = view==='bar' ? Math.max(labels.length*36+40, 100) : 180;
+  wrap.style.height = h+'px';
+
+  const canvas = document.getElementById('chart-'+cardId);
+  const isDark = true; // dashboard is always dark
+  const gridColor = 'rgba(42,58,46,0.5)';
+  const tickColor = '#7a9480';
+
+  if (view==='bar') {
+    awardCharts[cardId] = new Chart(canvas, {
+      type:'bar',
+      data:{ labels, datasets:[{ data, backgroundColor:bgColors, borderRadius:4, borderSkipped:false }] },
+      options:{
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ grid:{ color:gridColor }, ticks:{ color:tickColor, font:{size:11} }, border:{ color:gridColor } },
+          y:{ grid:{ display:false }, ticks:{ color:'#e8f0ea', font:{size:12,weight:'600'} }, border:{ display:false } }
+        }
+      }
     });
+  } else {
+    awardCharts[cardId] = new Chart(canvas, {
+      type:'doughnut',
+      data:{ labels, datasets:[{ data, backgroundColor:bgColors, borderWidth:2, borderColor:'#0f1510', hoverOffset:6 }] },
+      options:{
+        responsive:true, maintainAspectRatio:false, cutout:'55%',
+        plugins:{ legend:{ display:false } }
+      }
+    });
+  }
+}
+
+function setAllAwardsView(view) {
+  // Update global buttons
+  const globalBar = document.getElementById('global-bar-btn');
+  const globalPie = document.getElementById('global-pie-btn');
+  if (globalBar) { globalBar.className = 'award-toggle-btn'+(view==='bar'?' active':''); }
+  if (globalPie) { globalPie.className = 'award-toggle-btn'+(view==='pie'?' active':''); }
+  // Switch all skill cards
+  SKILL_AWARDS.forEach((_,i) => {
+    awardViewState['s'+i] = view;
+    renderAwardChart('s'+i, SKILL_AWARDS[i], false, view);
+  });
+  // Switch all roast cards
+  ROAST_AWARDS.forEach((_,i) => {
+    awardViewState['r'+i] = view;
+    renderAwardChart('r'+i, ROAST_AWARDS[i], true, view);
+  });
+}
+
+function switchAwardView(cardId, view, isRoast) {
+  awardViewState[cardId] = view;
+  const allAwards = [...SKILL_AWARDS, ...ROAST_AWARDS];
+  const award = allAwards.find((_,i) => {
+    const id = (i < SKILL_AWARDS.length ? 's' : 'r') + (i < SKILL_AWARDS.length ? i : i-SKILL_AWARDS.length);
+    return id === cardId;
+  });
+  if (award) renderAwardChart(cardId, award, isRoast, view);
+}
+
+function renderAwardsPage() {
+  // Load Chart.js if not already loaded
+  if (typeof Chart === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+    script.onload = () => _renderAwardsContent();
+    document.head.appendChild(script);
+  } else {
+    _renderAwardsContent();
+  }
+}
+
+function _renderAwardsContent() {
+  const skillGrid = document.getElementById('skill-awards-grid');
+  const roastGrid = document.getElementById('roast-awards-grid');
+  skillGrid.innerHTML = SKILL_AWARDS.map((a,i) => buildAwardCard(a, false, 's'+i)).join('');
+  roastGrid.innerHTML = ROAST_AWARDS.map((a,i) => buildAwardCard(a, true, 'r'+i)).join('');
+  // Render all charts after DOM is ready
+  setTimeout(() => {
+    SKILL_AWARDS.forEach((a,i) => renderAwardChart('s'+i, a, false, 'bar'));
+    ROAST_AWARDS.forEach((a,i) => renderAwardChart('r'+i, a, true, 'bar'));
   }, 50);
 }
 
